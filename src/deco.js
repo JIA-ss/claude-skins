@@ -150,7 +150,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
         crit: ["暴击!"],
         record: (n) => `新纪录 ×${n}!`,
         day: (n) => `第 ${n} 天`,
-        cycle: "点一下换主题（Ctrl+Alt+T）",
+        cycle: `点一下换主题（${/Mac/i.test(navigator.platform || "") ? "⌃⌥T" : "Ctrl+Alt+T"}）`,
       }
     : {
         click: ["Hey!", "Boop!", "Whatcha writing?", "You got this!", "Hehe", "Yay!"],
@@ -162,7 +162,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
         crit: ["CRIT!"],
         record: (n) => `New record ×${n}!`,
         day: (n) => `Day ${n}`,
-        cycle: "Click to switch theme (Ctrl+Alt+T)",
+        cycle: `Click to switch theme (${/Mac/i.test(navigator.platform || "") ? "⌃⌥T" : "Ctrl+Alt+T"})`,
       };
   function lines(kind) {
     const skin = api.skin();

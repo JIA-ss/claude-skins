@@ -8,7 +8,7 @@
   <a href="https://github.com/JIA-ss/claude-skins/releases/latest"><img src="https://img.shields.io/github/v/release/JIA-ss/claude-skins?label=release&color=5fe3c4" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JIA-ss/claude-skins?color=3d8bfd" alt="license"></a>
   <a href="skins/LICENSE.md"><img src="https://img.shields.io/badge/theme_art-CC0-8a8a8a" alt="theme art: CC0"></a>
-  <a href="#install"><img src="https://img.shields.io/badge/platform-Windows_%7C_macOS_%28experimental%29-0078D6?logo=windows&logoColor=white" alt="platform"></a>
+  <a href="#install"><img src="https://img.shields.io/badge/platform-Windows_%7C_macOS-0078D6?logo=windows&logoColor=white" alt="platform"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%E2%89%A5%2022-339933?logo=nodedotjs&logoColor=white" alt="node >= 22"></a>
   <a href="https://github.com/JIA-ss/claude-skins/stargazers"><img src="https://img.shields.io/github/stars/JIA-ss/claude-skins?color=f5c518&logo=github" alt="stars"></a>
   <a href="https://github.com/JIA-ss/codex-skins"><img src="https://img.shields.io/badge/sibling-codex--skins-10a37f" alt="codex-skins"></a>
@@ -42,7 +42,7 @@ Start Claude again. That's it.
 |---|---|
 | **Windows, Microsoft Store / MSIX** (the default download today) | The Store folder is read-only, so it copies the app to `%LOCALAPPDATA%\claude-skins\Claude`, patches the copy, and adds a Start menu shortcut **Claude (skins)**. Launch Claude from that shortcut. Your chats, login and settings are shared with the regular app. |
 | **Windows, classic installer** (`%LOCALAPPDATA%\AnthropicClaude\app-*`) | Patches it in place. |
-| **macOS** (`/Applications/Claude.app`) | Patches it in place and re-signs the bundle ad hoc. *Experimental — not tested by the author yet; reports welcome.* |
+| **macOS** (`/Applications/Claude.app`) | Never touches the signed app (patching it in place would break Anthropic's signature and with it Claude's auto-update). It copies the app to `~/Applications/Claude (skins).app`, patches the copy and re-signs it ad hoc. Start **Claude (skins)** from `~/Applications` or Spotlight, with the regular Claude quit; chats, login and settings are shared. On first start macOS asks for your login password to let it read the "Claude Safe Storage" keychain item — choose *Always Allow* (an ad hoc signature changes on every re-install, so it asks again after each one). Shortcuts are ⌃⌥T / ⌃⌥⇧T / ⌃⌥P. Tested on macOS 26 (Apple silicon) with Claude 4.29. |
 | Anything else | `node install.mjs --app <folder that contains resources/app.asar, or Claude.app>` |
 
 Other commands:
