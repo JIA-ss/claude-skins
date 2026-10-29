@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>mock claude.ai</title>
+<!-- A stand-in for the claude.ai main view: only the hooks claude-skins relies on (CSS variables, panel stacking,
+     data-cds=ChatComposer, data-testid=sidebar, .bg-surface-*) plus enough content to look like a chat. -->
+<style>
+ :root{--accent-brand:15 63.1% 59.6%;--cds-fill-brand:#c6613f;--cds-on-accent:#fff;--accent-pro-100:249.8 76.5% 73.3%;--danger-000:0 70% 50%;--brand-900:0 0% 0%}
+ html{background:#1f1e1d} html > :not(head):not(body){display:none !important}
+ body{margin:0;background:#1f1e1d;color:#e8e6e3;font:15px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+ .wrap{display:flex;height:100vh}
+ aside{position:relative;width:272px;background:#1a1918;padding:10px 8px;box-sizing:border-box}
+ .row{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:8px;color:#c9c6c0;font-size:14px}
+ .row.active{background:#2a2927;color:#f2efe9} .dim{color:#8f8b84;font-size:12px;padding:14px 10px 4px}
+ .ico{width:16px;height:16px;border-radius:4px;background:#3a3936;flex:0 0 auto}
+ main{position:relative;flex:1;display:flex;justify-content:center}
+ .col{position:relative;width:760px;padding:28px 0 220px;box-sizing:border-box}
+ .you{margin-left:auto;width:fit-content;max-width:520px;background:#2f2e2b;border-radius:14px;padding:10px 14px;margin-bottom:22px}
+ .bot p{margin:0 0 12px}
+ pre{background:#141413;border-radius:10px;padding:12px 14px;font:13px/1.5 Consolas,monospace;color:#d6d3cd;overflow:auto}
+ .card{background:#30302e;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:14px;color:#c9c6c0}
+ .btn{background:var(--cds-fill-brand);color:var(--cds-on-accent);border:0;border-radius:8px;padding:6px 12px;font:inherit;font-size:13px}
+ .b2{background:hsl(var(--accent-brand))}
+ .composer{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);width:760px}
+ .composer .bg-surface-3{background:#30302e;border-radius:18px;min-height:96px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid #3d3c39}
+ .ed{padding:14px 16px 0;outline:none;min-height:30px;color:#f2efe9}
+ .ed:empty:before{content:"Reply to Claude…";color:#7d7a74}
+ .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 10px}
+</style></head><body>
+<div class="wrap" style="background:#1f1e1d;position:relative"><div class="pointer-events-none" style="pointer-events:none;position:absolute;inset:0;background:#1f1e1d"></div>
+<aside><div data-testid="sidebar" style="display:flex;flex-direction:column">
+ <div class="row"><span class="ico"></span>New chat</div><div class="row"><span class="ico"></span>Search</div><div class="row"><span class="ico"></span>Projects</div>
+ <div class="dim">Recents</div>
+ <div class="row active">Plan a weekend trip</div><div class="row">Refactor the parser</div><div class="row">Explain CSS stacking</div><div class="row">Birthday poem for Mia</div>
+</div></aside>
+<main><div class="tiles-shell" style="pointer-events:none;position:absolute;inset:0;background-color:color(srgb 0.122 0.118 0.114)"></div>
+<div class="col epitaxy-chat-panel">
+ <div class="you">Can you help me plan a cozy weekend trip?</div>
+ <div class="bot"><p>Of course! Here's a relaxed two-day plan with time to slow down:</p>
+ <div class="card bg-surface-2">Day 1 — arrive, cabin check-in, lakeside walk, dinner by the fire.</div>
+ <pre>trip = { "day1": ["cabin", "lake", "campfire"], "day2": ["sunrise", "hike", "brunch"] }</pre>
+ <p>Want me to add restaurants near the lake? <button class="btn">Yes please</button> <button class="btn b2">Maybe later</button></p></div>
+ <div class="card">An opaque card: code blocks and tool calls keep their own background.</div>
+</div>
+<div class="composer" data-cds="ChatComposer"><div class="bg-surface-3"><div class="ed" contenteditable="true"></div><div class="bar"><span style="color:#8f8b84;font-size:13px">＋</span><button class="btn" data-cds="Button">↑</button></div></div></div>
+</main></div>
+</body></html>
