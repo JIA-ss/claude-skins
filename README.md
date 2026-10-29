@@ -86,7 +86,8 @@ A theme is a folder with a `skin.json`:
 | `badge` | transparent PNG for the sidebar banner |
 | `fx` | particles: `snow`, `petals`, `embers`, `rain`, `spores`, or omit |
 | `font` | optional `.woff2` / `.ttf` used for the banner title, bubbles and combo counter |
-| `lines` | optional speech lines: `{ "click": [...], "drag": [...], "send": [...], "dizzy": [...], "home": [...] }`, or per language `{ "zh": {...}, "en": {...} }` |
+| `lines` | optional speech lines: `{ "click": [...], "drag": [...], "send": [...], "dizzy": [...], "home": [...], "crit": [...], "tiers": [4 callouts for 20/50/100/200 combos] }`, or per language `{ "zh": {...}, "en": {...} }` |
+| `tag` | small text under the theme name in the sidebar banner (default `claude-skins`) |
 | `default` | `true` to make it the theme used on first start |
 
 Two ways to add it:
@@ -121,6 +122,7 @@ Everything is written to fail quietly: if claude.ai changes its markup, the wors
 npm test        # unit tests + an Electron end-to-end test on a mock claude.ai page
 npm run e2e     # only the end-to-end test; screenshots in test/out/
 npm run demo    # re-record docs/demo.mp4 + docs/demo.gif (needs ffmpeg)
+npm run e2e -- --skins <dir>   # also load and test your own theme folders
 ```
 
 The end-to-end test runs the real preload in Electron against `test/e2e/app/page.html`, a mock that reproduces just the hooks claude-skins relies on, and drives keys and the mouse: every theme, see-through panels, accent swap (and that danger / on-accent colors are left alone), typing / walking speed, Enter jump, combos, click-through, drag and snap-back, intensity and the diagnostics file.

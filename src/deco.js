@@ -144,7 +144,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
         dizzy: ["晕了~"],
         home: ["回家啦~"],
         tiers: ["连击!", "手速起飞!", "键盘冒烟!", "无双!"],
-        crit: "暴击!",
+        crit: ["暴击!"],
         record: (n) => `新纪录 ×${n}!`,
         day: (n) => `第 ${n} 天`,
         cycle: "点一下换主题（Ctrl+Alt+T）",
@@ -156,7 +156,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
         dizzy: ["Dizzy~"],
         home: ["Home!"],
         tiers: ["Combo!", "On fire!", "Keyboard smoking!", "Unstoppable!"],
-        crit: "CRIT!",
+        crit: ["CRIT!"],
         record: (n) => `New record ×${n}!`,
         day: (n) => `Day ${n}`,
         cycle: "Click to switch theme (Ctrl+Alt+T)",
@@ -542,15 +542,18 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
   // 连击数显示在贴纸右上角（×N，每键弹一下，档位越高越大越亮）；停手 0.7 s 断连，断连时破纪录会喊「新纪录」。
   // 连击 ≥ 8 后每键有暴击概率（4% + 冲劲 × 8%）：大字「暴击!」、步子 ×2.5、输入框边框闪一下。
   // 档位 20 / 50 / 100 / 之后每 100：喊档位名，转圈，大爆点，输入框闪光。
-  const TIERS = [[20, TEXT.tiers[0]], [50, TEXT.tiers[1]], [100, TEXT.tiers[2]], [200, TEXT.tiers[3]]];
+  // callouts at 20 / 50 / 100 / 200 (and every 100 after); a theme can rename them with lines.tiers (4 entries)
+  const TIER_AT = [20, 50, 100, 200];
   let best = 0;
   try {
     best = Number(localStorage.getItem("claude-skins.bestCombo")) || 0;
   } catch {}
   let comboEl = null, comboEnd = 0;
   function tierName(n) {
-    for (const [at, name] of TIERS) if (n === at) return name;
-    return n > 200 && n % 100 === 0 ? TEXT.tiers[3] : null;
+    const names = lines("tiers");
+    const i = TIER_AT.indexOf(n);
+    if (i >= 0) return names[i] ?? TEXT.tiers[i];
+    return n > 200 && n % 100 === 0 ? names[3] ?? TEXT.tiers[3] : null;
   }
   function flashComposer(strong) {
     const card = composerCard();
@@ -602,7 +605,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
       return "tier";
     }
     if (n >= 8 && Math.random() < 0.04 + 0.08 * walk.m) {
-      say(TEXT.crit, "crit");
+      say(pick(lines("crit")), "crit");
       if (r) burst(r.left + r.width / 2, r.top + r.height * 0.45, 12);
       flashComposer(false);
       showCombo(n, "crit");
@@ -760,7 +763,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     if (deco.bannerKey === key) return;
     deco.bannerKey = key;
     deco.bannerTitle.textContent = api.name(skin);
-    deco.bannerName.textContent = "claude-skins";
+    deco.bannerName.textContent = typeof skin.tag === "string" ? skin.tag : "claude-skins";
     const span = document.createElement("span");
     span.textContent = TEXT.day(daysSince());
     deco.bannerName.append(span);

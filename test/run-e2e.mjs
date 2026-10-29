@@ -1,6 +1,7 @@
 // Runs the Electron end-to-end test (or records the demo with --record) against the files in src/ and skins/.
 //   npm run e2e      → test/out/results.json + test/out/theme-*.png, exit code 0 when everything passes
 //   npm run demo     → docs/demo.mp4 + docs/demo.gif (needs ffmpeg on PATH)
+//   npm run e2e -- --skins <dir>   → also loads and tests the themes in <dir>
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -8,6 +9,9 @@ import { createRequire } from "node:module";
 import { REPO } from "../lib/patch.mjs";
 
 const record = process.argv.includes("--record");
+// --skins <dir>: also load the themes in <dir> (e.g. your own private pack) and test every one of them
+const extraAt = process.argv.indexOf("--skins");
+const extra = extraAt > 0 ? path.resolve(process.argv[extraAt + 1]) : "";
 const OUT = path.join(REPO, "test", "out");
 fs.mkdirSync(OUT, { recursive: true });
 const userData = path.join(OUT, "userdata");
@@ -19,7 +23,7 @@ fs.writeFileSync(preload, ["globalThis.__CLAUDE_SKINS_TEST__ = true;", ...["deco
 const electron = createRequire(import.meta.url)("electron");
 const r = spawnSync(electron, [path.join(REPO, "test", "e2e", "app")], {
   stdio: "inherit",
-  env: { ...process.env, CS_REPO: REPO, CS_OUT: OUT, CS_PRELOAD: preload, CS_USERDATA: userData, CS_RECORD: record ? "1" : "" },
+  env: { ...process.env, CS_REPO: REPO, CS_OUT: OUT, CS_PRELOAD: preload, CS_USERDATA: userData, CS_RECORD: record ? "1" : "", CS_EXTRA_SKINS: extra },
 });
 if (r.status !== 0 || !record) process.exit(r.status ?? 1);
 

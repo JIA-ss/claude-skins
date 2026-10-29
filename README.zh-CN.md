@@ -86,7 +86,8 @@ node install.mjs uninstall   # 恢复原版文件
 | `badge` | 透明底 PNG，用在侧栏横幅上 |
 | `fx` | 粒子：`snow` 雪、`petals` 花瓣、`embers` 火星、`rain` 雨、`spores` 光点，不填就没有 |
 | `font` | 可选，`.woff2` / `.ttf`，用于横幅标题、气泡和连击数字 |
-| `lines` | 可选，台词：`{ "click": [...], "drag": [...], "send": [...], "dizzy": [...], "home": [...] }`，也可以按语言分：`{ "zh": {...}, "en": {...} }` |
+| `lines` | 可选，台词：`{ "click": [...], "drag": [...], "send": [...], "dizzy": [...], "home": [...], "crit": [...], "tiers": [20/50/100/200 连击时喊的 4 句] }`，也可以按语言分：`{ "zh": {...}, "en": {...} }` |
+| `tag` | 侧栏横幅里主题名下面那行小字，默认 `claude-skins` |
 | `default` | 设成 `true`，第一次启动时就用这个主题 |
 
 两种加法：
@@ -121,6 +122,7 @@ node install.mjs uninstall   # 恢复原版文件
 npm test        # 单元测试 + 在模拟的 claude.ai 页面上跑 Electron 端到端测试
 npm run e2e     # 只跑端到端测试，截图在 test/out/
 npm run demo    # 重新录 docs/demo.mp4 和 docs/demo.gif（需要 ffmpeg）
+npm run e2e -- --skins <目录>   # 把你自己的主题文件夹也加载进来一起测
 ```
 
 端到端测试在真 Electron 里加载真实的 preload，页面用 `test/e2e/app/page.html`。这是个模拟页，只还原了 claude-skins 依赖的那些结构。测试用真实的键盘和鼠标事件驱动，覆盖这些内容：

@@ -19,6 +19,27 @@ const check = (name, ok, detail) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${name}${ok ? "" : "  " + JSON.stringify(detail)}`);
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Themes under test: the repo's skins/ plus an optional extra folder (CS_EXTRA_SKINS, e.g. a private theme pack),
+// listed and ordered exactly like main.js does, so the cycle order below matches the app.
+const BUNDLED = path.join(process.env.CS_REPO, "skins");
+const EXTRA = process.env.CS_EXTRA_SKINS || path.join(process.env.CS_OUT, "no-extra-skins");
+function themes() {
+  const out = new Map();
+  for (const dir of [BUNDLED, EXTRA]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const id of fs.readdirSync(dir)) {
+      try {
+        out.set(id, { id, ...JSON.parse(fs.readFileSync(path.join(dir, id, "skin.json"), "utf8")) });
+      } catch {}
+    }
+  }
+  const list = [...out.values()].sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.id.localeCompare(b.id));
+  const first = list.find((t) => t.default) ?? list[0];
+  const all = [...list, { id: "off" }];
+  const i = all.indexOf(first);
+  return { first, cycle: [...all.slice(i), ...all.slice(0, i)] };
+}
+const en = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v.en ?? v.zh : v);
 process.on("uncaughtException", (e) => {
   console.error(e);
   app.exit(2);
@@ -26,7 +47,9 @@ process.on("uncaughtException", (e) => {
 
 app.whenReady().then(async () => {
   try {
-    installClaudeSkins(electron, { isAllowedSender: () => true, bundledDir: path.join(process.env.CS_REPO, "skins") });
+    installClaudeSkins(electron, { isAllowedSender: () => true, bundledDir: BUNDLED, userDir: EXTRA });
+    const { first, cycle: ids } = themes();
+    console.log(`themes: ${ids.map((t) => t.id).join(" → ")}`);
     const W = 1600, H = 900;
     const win = new BrowserWindow({ width: W, height: H, x: 40, y: 40, useContentSize: true, skipTaskbar: !RECORD, show: true, backgroundColor: "#1f1e1d" });
     const view = new WebContentsView({ webPreferences: { preload: process.env.CS_PRELOAD, sandbox: true, backgroundThrottling: false } });
@@ -64,8 +87,7 @@ app.whenReady().then(async () => {
     if (RECORD) return await record({ page, js, sleep, cycle, typeChar, focusComposer, win });
 
     // ---- every theme: scene on, panels see-through, accent swapped, safe colors untouched ----
-    const ids = ["aurora", "sakura", "campfire", "neon", "off"];
-    for (const id of ids) {
+    for (const { id } of ids) {
       const st = JSON.parse(await js(`JSON.stringify({ id: localStorage.getItem('claude-skins.id'), op: document.querySelector('[data-cskin=layer]').style.getPropertyValue('opacity'), accent: getComputedStyle(document.documentElement).getPropertyValue('--accent-brand').trim(), danger: getComputedStyle(document.documentElement).getPropertyValue('--danger-000').trim(), onAccent: getComputedStyle(document.querySelector('.btn')).color, mainBg: getComputedStyle(document.querySelector('.wrap > .pointer-events-none')).backgroundColor, wrapBg: getComputedStyle(document.querySelector('.wrap')).backgroundColor, asideBg: getComputedStyle(document.querySelector('aside')).backgroundColor, cardBg: getComputedStyle(document.querySelector('.card:not(.bg-surface-2)')).backgroundColor, tilesBg: getComputedStyle(document.querySelector('.tiles-shell')).backgroundColor })`));
       const on = id !== "off";
       const ok = on
@@ -76,11 +98,11 @@ app.whenReady().then(async () => {
       await cycle();
     }
     // back to the first theme
-    for (let i = 0; i < 6 && (await js("localStorage.getItem('claude-skins.id')")) !== "aurora"; i++) await cycle();
+    for (let i = 0; i < ids.length + 1 && (await js("localStorage.getItem('claude-skins.id')")) !== first.id; i++) await cycle();
     await sleep(2000);
 
     const deco = JSON.parse(await js(`JSON.stringify({ banner: !!document.querySelector('[data-cskin=banner]'), title: document.querySelector('[data-cskin=banner]')?.shadowRoot.querySelector('.w')?.textContent, peek: getComputedStyle(document.querySelector('[data-cskin=peek]')).display, on: document.documentElement.hasAttribute('data-cskin-on'), fx: !!document.querySelector('[data-cskin=layer] canvas + canvas'), glass: getComputedStyle(document.querySelector('[data-cds=ChatComposer] > .bg-surface-3')).backdropFilter })`));
-    check("decoration: banner, mascot, particles, glass", deco.banner && deco.title === "Aurora" && deco.peek === "block" && deco.on && deco.fx && /blur/.test(deco.glass), deco);
+    check("decoration: banner, mascot, particles, glass", deco.banner && deco.title === en(first.name) && deco.peek === (first.peek ? "block" : "none") && deco.on && (deco.fx || !first.fx) && /blur/.test(deco.glass), deco);
 
     // ---- typing: one nod + one step per key, faster typing walks faster, stays on the composer edge ----
     const walkRun = (gap) => js(`(async () => { const card = document.querySelector('[data-cds=ChatComposer] > .bg-surface-3'); const ed = card.querySelector('[contenteditable]'); ed.focus(); const el = document.querySelector('[data-cskin=peek]'); let px = el.getBoundingClientRect().left, path = 0, nod = ''; const t0 = performance.now(); for (let i = 0; i < 20; i++) { ed.dispatchEvent(new InputEvent('input', { bubbles: true })); await new Promise(r => setTimeout(r, ${gap})); const nx = el.getBoundingClientRect().left; path += Math.abs(nx - px); px = nx; nod = nod || (document.querySelector('[data-cskin=peek-body]').getAnimations().length ? 'nod' : ''); } const dt = performance.now() - t0; await new Promise(r => setTimeout(r, 2500)); const clip = el.getBoundingClientRect(), cr = card.getBoundingClientRect(); const a = el.getBoundingClientRect().left; await new Promise(r => setTimeout(r, 300)); return JSON.stringify({ path, dt, nod, stopped: el.getBoundingClientRect().left === a, saved: localStorage.getItem('claude-skins.peekHomeX'), inside: clip.left >= cr.left && clip.right <= cr.right, overlap: clip.bottom - cr.top }); })()`).then(JSON.parse);
@@ -90,8 +112,10 @@ app.whenReady().then(async () => {
     const jump = JSON.parse(await js(`(async () => { const ed = document.querySelector('[data-cds=ChatComposer] [contenteditable]'); ed.focus(); for (let i = 0; i < 12; i++) { ed.dispatchEvent(new InputEvent('input', { bubbles: true })); await new Promise(r => setTimeout(r, 60)); } const tilt = document.querySelector('[data-cskin=peek-walk]').style.transform; ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); ed.dispatchEvent(new InputEvent('input', { bubbles: true })); await new Promise(r => setTimeout(r, 380)); const a = document.querySelector('[data-cskin=peek-body]').getAnimations()[0]; const kf = a ? JSON.stringify(a.effect.getKeyframes().map(k => k.transform)) : ''; const say = document.querySelector('[data-cskin=peek-say]')?.textContent || null; await new Promise(r => setTimeout(r, 1500)); return JSON.stringify({ tilt, kf, say }); })()`));
     check("Enter: leans forward when typing fast, jump survives the composer clearing, higher with momentum", /rotate\(-?[1-9]/.test(jump.tilt) && /translateY\(-(3\d|4\d)px\)/.test(jump.kf) && !!jump.say, jump);
 
+    const own = first.lines && (first.lines.en || first.lines.zh) ? first.lines.en ?? first.lines.zh : first.lines; // same rule as deco.js
+    const tiers = own && Array.isArray(own.tiers) && own.tiers.length >= 2 ? own.tiers : ["Combo!", "On fire!"];
     const combo = JSON.parse(await js("(async () => { const ed = document.querySelector('[data-cds=ChatComposer] [contenteditable]'); ed.focus(); let says = new Set(), maxN = 0; for (let i = 0; i < 60; i++) { ed.dispatchEvent(new InputEvent('input', { bubbles: true })); await new Promise(r => setTimeout(r, 50)); const t = document.querySelector('[data-cskin=peek-say]')?.textContent; if (t) says.add(t); maxN = Math.max(maxN, Number((document.querySelector('[data-cskin=peek-combo]')?.textContent || '').slice(1)) || 0); } await new Promise(r => setTimeout(r, 1200)); return JSON.stringify({ says: [...says], maxN, best: localStorage.getItem('claude-skins.bestCombo') }); })()"));
-    check("combo counter, tier callouts, best record after the streak ends", combo.maxN >= 60 && combo.says.includes("Combo!") && combo.says.includes("On fire!") && Number(combo.best) >= 60, combo);
+    check("combo counter, tier callouts, best record after the streak ends", combo.maxN >= 60 && combo.says.includes(tiers[0]) && combo.says.includes(tiers[1]) && Number(combo.best) >= 60, combo);
 
     // ---- mouse: click the mascot, transparent pixels fall through, drag out and back home ----
     const pt = JSON.parse(await js(`(() => { const c = document.querySelector('[data-cskin=peek] canvas'); const r = c.getBoundingClientRect(); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let y = Math.floor(c.height * 0.35); y < c.height; y += 2) for (let x = Math.floor(c.width * 0.3); x < c.width * 0.7; x += 2) if (d[(y * c.width + x) * 4 + 3] > 200) return JSON.stringify({ x: Math.round(r.left + x / c.width * r.width), y: Math.round(r.top + y / c.height * r.height) }); return 'null'; })()`));
