@@ -52,7 +52,13 @@ node install.mjs status      # Claude 装在哪、改没改过
 node install.mjs uninstall   # 恢复原版文件（商店版：删掉复制出来的那份和快捷方式）
 ```
 
-**Claude 更新后**再运行一次 `node install.mjs`。商店版会自动发现版本变了，重新复制一份。
+**Claude 更新之后**，皮肤不会自动跟着更新，需要重新运行一次安装：
+
+- 原版 Claude 照常自动更新，它的文件不会被改动（Windows 传统安装版除外，见下）。
+- 皮肤副本（Windows 上是 `%LOCALAPPDATA%\claude-skins\Claude`，macOS 上是 `~/Applications/Claude (skins).app`）停在复制时的版本，照常能用，只是会落后于原版。
+- 先退出皮肤副本，再运行一次 `node install.mjs`。它会发现原版变了（商店版看带版本号的安装目录，macOS 看版本号），重新复制一份、注入皮肤；macOS 上还会重新签名。（Windows 传统安装版是原地修改的，每次 Claude 更新都会把改过的文件换掉，所以同样要在每次更新后重跑。）
+- macOS：每次重装后「Claude Safe Storage」的钥匙串授权会再弹一次，因为 ad hoc 签名每次都是新的。
+- 还没验证的一点：副本里自带的自动更新程序会不会去升级副本本身。如果会，结果要么是升级失败（签名对不上），要么是变成没有皮肤的新版；两种情况都重新运行一次 `node install.mjs` 就好。
 
 ## 怎么用
 

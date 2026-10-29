@@ -52,7 +52,13 @@ node install.mjs status      # where Claude is, whether it is patched
 node install.mjs uninstall   # put the original files back (Store version: delete the skinned copy + shortcut)
 ```
 
-**After Claude updates**, run `node install.mjs` again (on the Store version it notices the new version and takes a fresh copy).
+**When Claude updates**, the skins do not follow by themselves — re-run the installer once:
+
+- The regular Claude keeps updating itself as usual; its files are never modified (except classic Windows installs, see below).
+- The skinned copy (`%LOCALAPPDATA%\claude-skins\Claude` on Windows, `~/Applications/Claude (skins).app` on macOS) stays on the version it was copied from. It keeps working, it just falls behind.
+- Quit the skinned copy and run `node install.mjs` again. It sees that the regular app changed (Store: its versioned folder; macOS: its version number), takes a fresh copy, patches and, on macOS, re-signs it. (Classic Windows installs are patched in place: each Claude update replaces the patched files, so re-run after every update there too.)
+- macOS: after each re-install the keychain prompt comes back once ("Claude Safe Storage") — the ad hoc signature is new every time.
+- Not verified yet: whether the copy's own built-in updater tries to update the copy. If it does, it either fails (the signature no longer matches) or leaves you with an unthemed newer version; re-running `node install.mjs` fixes both.
 
 ## Using it
 
