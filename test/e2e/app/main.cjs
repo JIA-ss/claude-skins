@@ -22,7 +22,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Themes under test: the repo's skins/ plus an optional extra folder (CS_EXTRA_SKINS, e.g. a private theme pack),
 // listed and ordered exactly like main.js does, so the cycle order below matches the app.
 const BUNDLED = path.join(process.env.CS_REPO, "skins");
-const EXTRA = process.env.CS_EXTRA_SKINS || path.join(process.env.CS_OUT, "no-extra-skins");
+// the demo only ever shows the bundled (license-free) themes
+const EXTRA = (process.env.CS_RECORD !== "1" && process.env.CS_EXTRA_SKINS) || path.join(process.env.CS_OUT, "no-extra-skins");
 function themes() {
   const out = new Map();
   for (const dir of [BUNDLED, EXTRA]) {
@@ -57,7 +58,8 @@ app.whenReady().then(async () => {
     win.contentView.addChildView(view);
     view.setBounds({ x: 0, y: 0, width: W, height: H });
     const page = view.webContents;
-    await page.loadFile(path.join(__dirname, "page.html"));
+    // the demo records a clean "new chat" screen (no history, no recents); the test uses a busier chat page
+    await page.loadFile(path.join(__dirname, RECORD ? "demo.html" : "page.html"));
     await page.executeJavaScript("localStorage.clear()");
     await page.reload();
     await sleep(2500);
@@ -84,7 +86,7 @@ app.whenReady().then(async () => {
     };
     const focusComposer = () => js("document.querySelector('[data-cds=ChatComposer] [contenteditable]').focus(); 1");
 
-    if (RECORD) return await record({ page, js, sleep, cycle, typeChar, focusComposer, win });
+    if (RECORD) return await record({ page, js, sleep, cycle, typeChar, focusComposer, win, shot, ids });
 
     // ---- every theme: scene on, panels see-through, accent swapped, safe colors untouched ----
     for (const { id } of ids) {
@@ -174,7 +176,13 @@ app.whenReady().then(async () => {
 });
 
 // ---- demo recording: frames from the compositor, encoded by test/run-e2e.mjs ----
-async function record({ page, js, sleep, cycle, typeChar, focusComposer }) {
+async function record({ page, js, sleep, cycle, typeChar, focusComposer, shot, ids }) {
+  // README screenshots of the clean screen, one per theme, then back to the first theme for the video
+  for (const { id } of ids) {
+    if (id !== "off") await shot(`readme-${id}.png`);
+    await cycle();
+  }
+  await sleep(1500);
   const frames = [];
   let t0 = 0;
   page.beginFrameSubscription(false, (img) => {
@@ -220,10 +228,11 @@ async function record({ page, js, sleep, cycle, typeChar, focusComposer }) {
   page.sendInputEvent({ type: "mouseUp", x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height * 0.62), button: "left", clickCount: 2 });
   await sleep(1400);
   // tour the themes while typing a little in each
-  for (let i = 0; i < 4; i++) {
+  // aurora → sakura → campfire → neon; stop before "off" so the video ends on a theme
+  for (let i = 0; i < 3; i++) {
     await cycle();
     await focusComposer();
-    await typeText(["so cozy", "petals!", "warm", "rainy night"][i], 70);
+    await typeText(["petals!", "so warm", "rainy night vibes"][i], 70);
     page.sendInputEvent({ type: "keyDown", keyCode: "Return" });
     await js("document.querySelector('[data-cds=ChatComposer] [contenteditable]').textContent=''; 1");
     await sleep(1500);
