@@ -9,7 +9,7 @@
 //   3. turns off two Electron fuses (embedded asar integrity check, load-app-only-from-asar) so the patched asar loads;
 //      on macOS the bundle is re-signed ad hoc.
 // Windows Store / MSIX installs are read-only: the app is copied to %LOCALAPPDATA%\claude-skins\Claude and a Start menu
-// shortcut "Claude (skins)" is created. Quit Claude before running.
+// shortcut "Claude (skins)" is created; uninstall deletes that copy and the shortcut. Quit Claude before running.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -99,8 +99,9 @@ async function setFuses(exe, on) {
     [FuseV1Options.OnlyLoadAppFromAsar]: on,
   });
 }
+const SHORTCUT = () => path.join(process.env.APPDATA, "Microsoft", "Windows", "Start Menu", "Programs", "Claude (skins).lnk");
 function shortcut(exe) {
-  const lnk = path.join(process.env.APPDATA, "Microsoft", "Windows", "Start Menu", "Programs", "Claude (skins).lnk");
+  const lnk = SHORTCUT();
   ps(`$s=(New-Object -ComObject WScript.Shell).CreateShortcut('${lnk}');$s.TargetPath='${exe}';$s.WorkingDirectory='${path.dirname(exe)}';$s.Save()`);
   return lnk;
 }
@@ -154,6 +155,14 @@ async function install(l) {
 }
 
 async function uninstall(l) {
+  if (l.store) {
+    // Store install: the skinned copy is ours entirely — remove it and its shortcut
+    if (!fs.existsSync(l.root)) return log("nothing to remove (no skinned copy)");
+    if (running(l)) die("the skinned copy is running — quit it first");
+    fs.rmSync(l.root, { recursive: true, force: true });
+    fs.rmSync(SHORTCUT(), { force: true });
+    return log(`removed ${l.root} and the "Claude (skins)" shortcut; the Store app was never modified`);
+  }
   if (running(l)) die("Claude is running from this folder — quit it first");
   const asarPath = path.join(l.resources, "app.asar");
   let done = false;

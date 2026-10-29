@@ -19,7 +19,7 @@
 ```bash
 git clone https://github.com/JIA-ss/claude-skins.git
 cd claude-skins
-npm install
+npm install --omit=dev   # 开发依赖（Electron）只有跑测试才需要
 node install.mjs
 ```
 
@@ -36,7 +36,7 @@ node install.mjs
 
 ```bash
 node install.mjs status      # Claude 装在哪、改没改过
-node install.mjs uninstall   # 恢复原版文件
+node install.mjs uninstall   # 恢复原版文件（商店版：删掉复制出来的那份和快捷方式）
 ```
 
 **Claude 更新后**再运行一次 `node install.mjs`。商店版会自动发现版本变了，重新复制一份。

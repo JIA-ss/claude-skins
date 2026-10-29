@@ -19,7 +19,7 @@ Requires [Node.js](https://nodejs.org) 22+. Quit Claude first (tray icon / menu 
 ```bash
 git clone https://github.com/JIA-ss/claude-skins.git
 cd claude-skins
-npm install
+npm install --omit=dev   # dev dependencies (Electron) are only needed for the tests
 node install.mjs
 ```
 
@@ -36,7 +36,7 @@ Other commands:
 
 ```bash
 node install.mjs status      # where Claude is, whether it is patched
-node install.mjs uninstall   # put the original files back
+node install.mjs uninstall   # put the original files back (Store version: delete the skinned copy + shortcut)
 ```
 
 **After Claude updates**, run `node install.mjs` again (on the Store version it notices the new version and takes a fresh copy).

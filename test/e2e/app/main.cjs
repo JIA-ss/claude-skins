@@ -165,6 +165,26 @@ app.whenReady().then(async () => {
     await sleep(600);
     check("Ctrl+Alt+Shift+T changes intensity", /0\.46\)/.test(await js("getComputedStyle(document.querySelector('.wrap > .pointer-events-none')).backgroundColor")));
     await shot("demo-deco.png");
+
+    // ---- stage mode: sidebar contents and the top title strip disappear, private themes are skipped ----
+    const stageKey = async () => {
+      page.sendInputEvent({ type: "keyDown", keyCode: "P", modifiers: ["control", "alt"] });
+      page.sendInputEvent({ type: "keyUp", keyCode: "P", modifiers: ["control", "alt"] });
+      await sleep(900);
+    };
+    const vis = () => js(`JSON.stringify({ stage: document.documentElement.hasAttribute('data-cskin-stage'), recent: getComputedStyle(document.querySelector('.row.active')).visibility, account: getComputedStyle(document.querySelector('.row.account')).visibility, banner: getComputedStyle(document.querySelector('[data-cskin=banner]')).visibility, title: getComputedStyle(document.querySelector('.sess-title')).visibility, path: getComputedStyle(document.querySelector('.sess-path')).visibility, icon: getComputedStyle(document.querySelector('.sess-icon')).visibility, chat: getComputedStyle(document.querySelector('.you')).visibility, skin: localStorage.getItem('claude-skins.id') })`).then(JSON.parse);
+    await stageKey();
+    const on = await vis();
+    const priv = new Set(ids.filter((t) => t.private).map((t) => t.id));
+    const seen = [];
+    for (let i = 0; i < ids.length + 1; i++) {
+      seen.push(await js("localStorage.getItem('claude-skins.id')"));
+      await cycle();
+    }
+    check("stage mode: sidebar list, account and title strip hidden, banner and chat stay, private themes skipped", on.stage && on.recent === "hidden" && on.account === "hidden" && on.banner === "visible" && on.title === "hidden" && on.path === "hidden" && on.icon === "visible" && on.chat === "visible" && !priv.has(on.skin) && !seen.some((id) => priv.has(id)), { on, seen });
+    await stageKey();
+    const off = await vis();
+    check("stage mode off restores everything", !off.stage && off.recent === "visible" && off.account === "visible" && off.title === "visible" && off.path === "visible", off);
     const probe = path.join(app.getPath("userData"), "claude-skins", "probe.json");
     await sleep(7000);
     check("probe file written", fs.existsSync(probe) && JSON.parse(fs.readFileSync(probe, "utf8")).hooks.composer === true);

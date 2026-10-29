@@ -7,7 +7,9 @@
 // Accents: at runtime, CSS custom properties on :root whose names contain accent / brand get the theme's hue and
 // saturation while keeping their lightness. on-accent foregrounds and the Pro purple are left alone. If claude.ai
 // renames its variables nothing breaks — the accent just stops changing.
-// Keys: Ctrl+Alt+T cycles themes (incl. off), Ctrl+Alt+Shift+T cycles intensity. Choices persist in localStorage.
+// Keys: Ctrl+Alt+T cycles themes (incl. off), Ctrl+Alt+Shift+T cycles intensity, Ctrl+Alt+P toggles stage mode
+// (for screen recordings: sidebar contents, the top title strip and "private": true themes are hidden).
+// Choices persist in localStorage.
 // Diagnostics: <userData>/claude-skins/probe.json.
 (function claudeSkins() {
   "use strict";
@@ -21,8 +23,8 @@
 
   const ZH = /^zh/i.test(navigator.language || "");
   const T = ZH
-    ? { off: "已关闭", level: "浓度", levels: ["淡", "中", "浓"] }
-    : { off: "off", level: "Intensity", levels: ["low", "medium", "high"] };
+    ? { off: "已关闭", level: "浓度", levels: ["淡", "中", "浓"], stageOn: "录屏模式：开（侧栏和标题已隐藏，Ctrl+Alt+P 关闭）", stageOff: "录屏模式：关" }
+    : { off: "off", level: "Intensity", levels: ["low", "medium", "high"], stageOn: "Stage mode on — sidebar and titles hidden (Ctrl+Alt+P to turn off)", stageOff: "Stage mode off" };
   const nameOf = (skin) => (typeof skin.name === "string" ? skin.name : (skin.name && (ZH ? skin.name.zh : skin.name.en)) || skin.id);
 
   let SKINS = [];
@@ -31,6 +33,7 @@
   const ALPHAS = [0.78, 0.62, 0.46];
   const KEY_SKIN = "claude-skins.id";
   const KEY_LEVEL = "claude-skins.level";
+  const KEY_STAGE = "claude-skins.stage";
   const ACCENT_RE = /^--.*(accent|brand)/i;
   const ACCENT_SKIP = /danger|warning|success|error|info|secondary|ok|fail|pro|(^--|-)on(-|$)/i;
 
@@ -61,6 +64,8 @@
     accents: [],
     drawToken: 0,
     marked: new Map(),
+    stage: store.get(KEY_STAGE, "0") === "1",
+    stageHidden: new Set(),
   };
 
   // Theme manifests come from the main process. Unknown / malformed fields fall back to safe defaults.
@@ -427,8 +432,10 @@
     }).catch(() => {});
   }
 
+  // themes offered right now: stage mode leaves out the ones marked "private" (e.g. a company-internal pack)
+  const offered = () => (state.stage ? SKINS.filter((s) => !s.private) : SKINS);
   function cycleSkin() {
-    const all = [...SKINS, OFF];
+    const all = [...offered(), OFF];
     state.skin = all[(all.indexOf(state.skin) + 1) % all.length];
     store.set(KEY_SKIN, state.skin.id);
     applyAll();
@@ -443,8 +450,67 @@
     toast(`${T.level}: ${T.levels[state.level]}`);
   }
 
+  // ---------- stage mode ----------
+  // Sidebar: everything but the theme banner is made invisible (layout unchanged, nothing reflows).
+  // Top title strip: any element with its own text inside the top 44 px of the content area is hidden too
+  // (session title, folder path); icon-only buttons stay. A private theme is swapped for the first public one.
+  const STAGE_CSS = `
+html[data-cskin-stage] :is(aside.dframe-sidebar, [data-testid=sidebar]) * { visibility: hidden !important; }
+html[data-cskin-stage] [data-cskin=banner][data-cskin=banner][data-cskin=banner] { visibility: visible !important; }
+`;
+  let stageSheet = null;
+  function ownText(el) {
+    for (const n of el.childNodes) if (n.nodeType === 3 && n.textContent.trim()) return true;
+    return false;
+  }
+  function stageScan() {
+    const keep = new Set();
+    if (state.stage) {
+      const side = document.querySelector("aside.dframe-sidebar, [data-testid=sidebar]");
+      const left = side ? side.getBoundingClientRect().right : 0;
+      for (const el of document.querySelectorAll("body *")) {
+        if (el.closest("[data-cskin]") || el.closest("[data-cds=ChatComposer]") || !ownText(el)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width && r.height && r.top < 44 && r.bottom <= 60 && r.left >= left - 1) keep.add(el);
+      }
+    }
+    for (const el of state.stageHidden) if (!keep.has(el)) el.style.removeProperty("visibility");
+    for (const el of keep) el.style.setProperty("visibility", "hidden", "important");
+    state.stageHidden = keep;
+  }
+  function applyStage() {
+    const html = document.documentElement;
+    if (state.stage) html.setAttribute("data-cskin-stage", "");
+    else html.removeAttribute("data-cskin-stage");
+    try {
+      if (!stageSheet) {
+        stageSheet = new CSSStyleSheet();
+        stageSheet.replaceSync(STAGE_CSS);
+        document.adoptedStyleSheets = [...document.adoptedStyleSheets, stageSheet];
+      }
+    } catch {}
+    if (state.stage && state.skin !== OFF && state.skin.private) {
+      state.skin = offered()[0] ?? OFF;
+      store.set(KEY_SKIN, state.skin.id);
+      applyAll();
+    }
+    stageScan();
+  }
+  function toggleStage() {
+    state.stage = !state.stage;
+    store.set(KEY_STAGE, state.stage ? "1" : "0");
+    applyStage();
+    toast(state.stage ? T.stageOn : T.stageOff);
+  }
+
   window.addEventListener("keydown", (e) => {
-    if (!e.ctrlKey || !e.altKey || e.metaKey || e.code !== "KeyT") return;
+    if (!e.ctrlKey || !e.altKey || e.metaKey) return;
+    if (e.code === "KeyP" && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      return toggleStage();
+    }
+    if (e.code !== "KeyT") return;
     e.preventDefault();
     e.stopPropagation();
     if (e.shiftKey) cycleLevel();
@@ -459,7 +525,13 @@
 
   async function start() {
     await loadSkins();
+    if (state.stage && state.skin.private) {
+      state.skin = offered()[0] ?? OFF;
+      store.set(KEY_SKIN, state.skin.id);
+    }
     applyAll();
+    applyStage();
+    if (state.stage) setTimeout(() => toast(T.stageOn), 1200);
     // light / dark switches change html class / data-*: re-read the original accents and re-decide the scene
     let pending = 0;
     new MutationObserver(() => {
@@ -470,11 +542,13 @@
     let stTimer = 0;
     new MutationObserver(() => {
       clearTimeout(stTimer);
+      if (state.stage) stageScan();
       stTimer = setTimeout(seeThrough, 300);
     }).observe(document.body, { childList: true, subtree: true });
     // the SPA sometimes rebuilds nodes: put the layer back; accent variables need the page CSS, so retry a few times
     let tries = 0;
     setInterval(() => {
+      if (state.stage || state.stageHidden.size) stageScan();
       if (!state.layer || !state.layer.isConnected || !state.line.isConnected) draw().catch(() => {});
       else seeThrough();
       if (tries < 5 && state.skin !== OFF && state.accents.length === 0) {
