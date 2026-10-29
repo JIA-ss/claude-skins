@@ -23,8 +23,8 @@
 
   const ZH = /^zh/i.test(navigator.language || "");
   const T = ZH
-    ? { off: "已关闭", level: "浓度", levels: ["淡", "中", "浓"], stageOn: "录屏模式：开（侧栏和标题已隐藏，Ctrl+Alt+P 关闭）", stageOff: "录屏模式：关" }
-    : { off: "off", level: "Intensity", levels: ["low", "medium", "high"], stageOn: "Stage mode on — sidebar and titles hidden (Ctrl+Alt+P to turn off)", stageOff: "Stage mode off" };
+    ? { off: "已关闭", level: "浓度", levels: ["淡", "中", "浓"], stageOn: "录屏模式：开（侧栏和标题已隐藏，Ctrl+Alt+P 关闭）", stageOff: "录屏模式：关", hint: "claude-skins：Ctrl+Alt+T 换主题 · Ctrl+Alt+Shift+T 调浓度 · Ctrl+Alt+P 录屏模式" }
+    : { off: "off", level: "Intensity", levels: ["low", "medium", "high"], stageOn: "Stage mode on — sidebar and titles hidden (Ctrl+Alt+P to turn off)", stageOff: "Stage mode off", hint: "claude-skins: Ctrl+Alt+T theme · Ctrl+Alt+Shift+T intensity · Ctrl+Alt+P stage mode" };
   const nameOf = (skin) => (typeof skin.name === "string" ? skin.name : (skin.name && (ZH ? skin.name.zh : skin.name.en)) || skin.id);
 
   let SKINS = [];
@@ -34,6 +34,7 @@
   const KEY_SKIN = "claude-skins.id";
   const KEY_LEVEL = "claude-skins.level";
   const KEY_STAGE = "claude-skins.stage";
+  const KEY_HINTS = "claude-skins.hints";
   const ACCENT_RE = /^--.*(accent|brand)/i;
   const ACCENT_SKIP = /danger|warning|success|error|info|secondary|ok|fail|pro|(^--|-)on(-|$)/i;
 
@@ -360,7 +361,7 @@
 
   // ---------- toast ----------
   let toastTimer = 0;
-  function toast(text) {
+  function toast(text, ms = 1600) {
     let el = document.querySelector("[data-cskin=toast]");
     if (!el) {
       el = document.createElement("div");
@@ -377,7 +378,7 @@
     el.style.borderColor = state.skin === OFF ? "rgba(255,255,255,.12)" : state.skin.line;
     el.style.opacity = "1";
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (el.style.opacity = "0"), 1600);
+    toastTimer = setTimeout(() => (el.style.opacity = "0"), ms);
   }
 
   // ---------- flow ----------
@@ -411,6 +412,8 @@
   function probe() {
     ipcRenderer.invoke("claude-skins:probe", {
       skin: state.skin.id,
+      stored: store.get(KEY_SKIN, null),
+      stage: state.stage,
       skins: SKINS.map((s) => `${s.id}:${s.source}`),
       level: ALPHAS[state.level],
       dark: isDark(),
@@ -531,7 +534,13 @@ html[data-cskin-stage] [data-cskin=banner][data-cskin=banner][data-cskin=banner]
     }
     applyAll();
     applyStage();
-    if (state.stage) setTimeout(() => toast(T.stageOn), 1200);
+    // the first few starts remind the user of the shortcuts (stage mode has its own reminder)
+    const shown = Number(store.get(KEY_HINTS, "0")) || 0;
+    if (state.stage) setTimeout(() => toast(T.stageOn, 4000), 1200);
+    else if (shown < 3 && SKINS.length) {
+      store.set(KEY_HINTS, String(shown + 1));
+      setTimeout(() => toast(T.hint, 6000), 2500);
+    }
     // light / dark switches change html class / data-*: re-read the original accents and re-decide the scene
     let pending = 0;
     new MutationObserver(() => {

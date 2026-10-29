@@ -62,7 +62,7 @@ app.whenReady().then(async () => {
     await page.loadFile(path.join(__dirname, RECORD ? "demo.html" : "page.html"));
     await page.executeJavaScript("localStorage.clear()");
     await page.reload();
-    await sleep(2500);
+    await sleep(3200);
     const js = (c) => page.executeJavaScript(c);
     const shot = async (name) => {
       for (let k = 0; k < 6; k++) {
@@ -89,6 +89,10 @@ app.whenReady().then(async () => {
     if (RECORD) return await record({ page, js, sleep, cycle, typeChar, focusComposer, win, shot, ids });
 
     // ---- every theme: scene on, panels see-through, accent swapped, safe colors untouched ----
+    if (!RECORD) {
+      const hint = await js("document.querySelector('[data-cskin=toast]')?.style.opacity === '1' ? document.querySelector('[data-cskin=toast]').textContent : null");
+      check("first start shows the shortcut hint", /Ctrl\+Alt\+T/.test(hint || "") && /Ctrl\+Alt\+P/.test(hint || ""), hint);
+    }
     for (const { id } of ids) {
       const st = JSON.parse(await js(`JSON.stringify({ id: localStorage.getItem('claude-skins.id'), op: document.querySelector('[data-cskin=layer]').style.getPropertyValue('opacity'), accent: getComputedStyle(document.documentElement).getPropertyValue('--accent-brand').trim(), danger: getComputedStyle(document.documentElement).getPropertyValue('--danger-000').trim(), onAccent: getComputedStyle(document.querySelector('.btn')).color, mainBg: getComputedStyle(document.querySelector('.wrap > .pointer-events-none')).backgroundColor, wrapBg: getComputedStyle(document.querySelector('.wrap')).backgroundColor, asideBg: getComputedStyle(document.querySelector('aside')).backgroundColor, cardBg: getComputedStyle(document.querySelector('.card:not(.bg-surface-2)')).backgroundColor, tilesBg: getComputedStyle(document.querySelector('.tiles-shell')).backgroundColor })`));
       const on = id !== "off";
@@ -103,8 +107,8 @@ app.whenReady().then(async () => {
     for (let i = 0; i < ids.length + 1 && (await js("localStorage.getItem('claude-skins.id')")) !== first.id; i++) await cycle();
     await sleep(2000);
 
-    const deco = JSON.parse(await js(`JSON.stringify({ banner: !!document.querySelector('[data-cskin=banner]'), title: document.querySelector('[data-cskin=banner]')?.shadowRoot.querySelector('.w')?.textContent, peek: getComputedStyle(document.querySelector('[data-cskin=peek]')).display, on: document.documentElement.hasAttribute('data-cskin-on'), fx: !!document.querySelector('[data-cskin=layer] canvas + canvas'), glass: getComputedStyle(document.querySelector('[data-cds=ChatComposer] > .bg-surface-3')).backdropFilter })`));
-    check("decoration: banner, mascot, particles, glass", deco.banner && deco.title === en(first.name) && deco.peek === (first.peek ? "block" : "none") && deco.on && (deco.fx || !first.fx) && /blur/.test(deco.glass), deco);
+    const deco = JSON.parse(await js(`JSON.stringify({ banner: !!document.querySelector('[data-cskin=banner]'), title: document.querySelector('[data-cskin=banner]')?.shadowRoot.querySelector('.w')?.textContent, peek: getComputedStyle(document.querySelector('[data-cskin=peek]')).display, on: document.documentElement.hasAttribute('data-cskin-on'), fx: !!document.querySelector('[data-cskin=layer] canvas + canvas'), glass: getComputedStyle(document.querySelector('[data-cds=ChatComposer] > .bg-surface-3')).backdropFilter, clip: getComputedStyle(document.querySelector('[data-cskin=peek]')).clipPath, ov: getComputedStyle(document.querySelector('[data-cskin=peek]')).overflow })`));
+    check("decoration: banner, mascot, particles, glass", deco.banner && deco.title === en(first.name) && deco.peek === (first.peek ? "block" : "none") && deco.on && (deco.fx || !first.fx) && /blur/.test(deco.glass) && /^inset\(-400px -400px 0px( -400px)?\)$/.test(deco.clip) && deco.ov === "visible", deco);
 
     // ---- typing: one nod + one step per key, faster typing walks faster, stays on the composer edge ----
     const walkRun = (gap) => js(`(async () => { const card = document.querySelector('[data-cds=ChatComposer] > .bg-surface-3'); const ed = card.querySelector('[contenteditable]'); ed.focus(); const el = document.querySelector('[data-cskin=peek]'); let px = el.getBoundingClientRect().left, path = 0, nod = ''; const t0 = performance.now(); for (let i = 0; i < 20; i++) { ed.dispatchEvent(new InputEvent('input', { bubbles: true })); await new Promise(r => setTimeout(r, ${gap})); const nx = el.getBoundingClientRect().left; path += Math.abs(nx - px); px = nx; nod = nod || (document.querySelector('[data-cskin=peek-body]').getAnimations().length ? 'nod' : ''); } const dt = performance.now() - t0; await new Promise(r => setTimeout(r, 2500)); const clip = el.getBoundingClientRect(), cr = card.getBoundingClientRect(); const a = el.getBoundingClientRect().left; await new Promise(r => setTimeout(r, 300)); return JSON.stringify({ path, dt, nod, stopped: el.getBoundingClientRect().left === a, saved: localStorage.getItem('claude-skins.peekHomeX'), inside: clip.left >= cr.left && clip.right <= cr.right, overlap: clip.bottom - cr.top }); })()`).then(JSON.parse);
