@@ -1,6 +1,6 @@
 <h1 align="center">claude-skins</h1>
 
-<p align="center"><b>给 Claude 桌面版换肤，再养一只跟着你打字的小家伙。</b><br>
+<p align="center"><b>给 Claude 桌面版换肤（Windows 和 macOS），再养一只跟着你打字的小家伙。</b><br>
 <sub>聊天区后面铺一张场景画，强调色跟着换，面板变成毛玻璃，再加一点粒子；还有一只吉祥物趴在输入框上沿，你打字它就蹦着往前走，回车就起跳。</sub></p>
 
 <p align="center">
@@ -8,7 +8,7 @@
   <a href="https://github.com/JIA-ss/claude-skins/releases/latest"><img src="https://img.shields.io/github/v/release/JIA-ss/claude-skins?label=release&color=5fe3c4" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/JIA-ss/claude-skins?color=3d8bfd" alt="license"></a>
   <a href="skins/LICENSE.md"><img src="https://img.shields.io/badge/theme_art-CC0-8a8a8a" alt="theme art: CC0"></a>
-  <a href="#安装"><img src="https://img.shields.io/badge/platform-Windows_%7C_macOS%EF%BC%88%E5%AE%9E%E9%AA%8C%EF%BC%89-0078D6?logo=windows&logoColor=white" alt="platform"></a>
+  <a href="#安装"><img src="https://img.shields.io/badge/platform-Windows_%7C_macOS-0078D6?logo=windows&logoColor=white" alt="platform"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%E2%89%A5%2022-339933?logo=nodedotjs&logoColor=white" alt="node >= 22"></a>
   <a href="https://github.com/JIA-ss/claude-skins/stargazers"><img src="https://img.shields.io/github/stars/JIA-ss/claude-skins?color=f5c518&logo=github" alt="stars"></a>
   <a href="https://github.com/JIA-ss/codex-skins"><img src="https://img.shields.io/badge/%E5%A7%8A%E5%A6%B9%E9%A1%B9%E7%9B%AE-codex--skins-10a37f" alt="codex-skins"></a>
@@ -42,7 +42,7 @@ node install.mjs
 |---|---|
 | **Windows 商店版 / MSIX**（目前官网默认下载的就是这种） | 商店版目录是只读的，所以安装器把应用复制到 `%LOCALAPPDATA%\claude-skins\Claude`，改这份副本，再在开始菜单加一个快捷方式 **Claude (skins)**。以后从这个快捷方式启动。对话、登录、设置和原版共用。注意：`claude://` 链接还是会打开原版。 |
 | **Windows 传统安装版**（`%LOCALAPPDATA%\AnthropicClaude\app-*`） | 直接改原地的文件。 |
-| **macOS**（`/Applications/Claude.app`） | 直接改原地的文件，然后做一次 ad hoc 重签名。*实验性：作者还没在 Mac 上测过，欢迎反馈。* |
+| **macOS**（`/Applications/Claude.app`） | 不碰官方签名的应用：原地修改会破坏 Anthropic 的签名，Claude 的自动更新也会跟着失效。安装器把应用复制到 `~/Applications/Claude (skins).app`，改这份副本，再做一次 ad hoc 重签名。从 `~/Applications` 或聚焦搜索启动 **Claude (skins)**，启动前先退出原版 Claude；对话、登录、设置和原版共用。第一次启动时 macOS 会要你输入登录密码，允许它读取钥匙串里的「Claude Safe Storage」，选「始终允许」（ad hoc 签名每次重装都会变，所以每次重装后会再问一次）。快捷键是 ⌃⌥T / ⌃⌥⇧T / ⌃⌥P。已在 macOS 26（Apple 芯片）+ Claude 4.29 上测过。 |
 | 其他位置 | `node install.mjs --app <含 resources/app.asar 的目录，或 Claude.app>` |
 
 其他命令：
