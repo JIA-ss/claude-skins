@@ -47,6 +47,7 @@ node install.mjs uninstall   # put the original files back (Store version: delet
 |---|---|
 | `Ctrl+Alt+T` | next theme (… → off → first theme) |
 | `Ctrl+Alt+Shift+T` | intensity: how much of the scene shows through (low / medium / high) |
+| `Ctrl+Alt+P` | **stage mode** for screen recordings: hides the sidebar contents (chat list, projects, account) and the session title / folder in the top strip, and skips themes marked `"private": true`. Press again to turn it off; it stays on across restarts until you do. |
 | click the sidebar banner | next theme |
 
 The mascot:
@@ -56,6 +57,8 @@ The mascot:
 - **Click** — boing / head shake / hop with a speech bubble; three quick clicks make it dizzy.
 - **Drag** — grab it anywhere, it swings with your movement and stays where you drop it. Drop it back near the message box (or double-click it) and it climbs back home.
 - Clicks on its transparent parts go straight through to the page.
+
+Recording a demo: open a **new chat**, press `Ctrl+Alt+P`, then record just the Claude window (on Windows `Win+Alt+R` with the Game Bar records the focused window only; on macOS `Cmd+Shift+5` → *Record Selected Window*).
 
 Light theme: only the accent color changes (the scene is designed for dark mode). Reduced motion (OS setting) turns off animations and particles.
 
@@ -89,6 +92,7 @@ A theme is a folder with a `skin.json`:
 | `lines` | optional speech lines: `{ "click": [...], "drag": [...], "send": [...], "dizzy": [...], "home": [...], "crit": [...], "tiers": [4 callouts for 20/50/100/200 combos] }`, or per language `{ "zh": {...}, "en": {...} }` |
 | `tag` | small text under the theme name in the sidebar banner (default `claude-skins`) |
 | `default` | `true` to make it the theme used on first start |
+| `private` | `true` to hide it in stage mode (e.g. a theme with internal / licensed art you should not show in recordings) |
 
 Two ways to add it:
 

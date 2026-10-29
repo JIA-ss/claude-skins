@@ -161,6 +161,9 @@ async function uninstall(l) {
     if (running(l)) die("the skinned copy is running — quit it first");
     fs.rmSync(l.root, { recursive: true, force: true });
     fs.rmSync(SHORTCUT(), { force: true });
+    try {
+      fs.rmdirSync(path.dirname(l.root)); // %LOCALAPPDATA%\claude-skins, only if empty
+    } catch {}
     return log(`removed ${l.root} and the "Claude (skins)" shortcut; the Store app was never modified`);
   }
   if (running(l)) die("Claude is running from this folder — quit it first");
