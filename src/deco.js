@@ -246,6 +246,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
   function setBox(left, top) {
     deco.peek.style.setProperty("left", Math.round(left) + "px", "important");
     deco.peek.style.setProperty("top", Math.round(top) + "px", "important");
+    if (followers.size) placeFollowers(); // keep up within the same frame, not one frame behind
   }
   function placePeek() {
     const el = deco.peek;
@@ -288,6 +289,32 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     land: () => act([{ transform: "scale(1.16,.8)" }, { transform: "scale(.94,1.06)" }, { transform: "none" }], { duration: 380 }),
     look: () => act([{ transform: "none" }, { transform: `rotate(${(Math.random() < 0.5 ? -1 : 1) * 5}deg)`, offset: 0.3 }, { transform: `rotate(${(Math.random() < 0.5 ? -1 : 1) * 5}deg)`, offset: 0.7 }, { transform: "none" }], { duration: 1800, easing: "ease-in-out" }),
   };
+  // Floating text that follows the mascot (speech bubble, combo counter): re-placed every frame from the
+  // outer box, which only moves when walking / dragging, so the nod wobble is not carried over.
+  const followers = new Map(); // el -> (box) => [left, top]
+  let followRaf = 0;
+  function placeFollowers() {
+    const box = deco.peek && deco.peek.getBoundingClientRect();
+    for (const [e, f] of followers) {
+      if (!e.isConnected) {
+        followers.delete(e);
+        continue;
+      }
+      if (!box) continue;
+      const [l, t] = f(box);
+      e.style.setProperty("left", Math.round(l) + "px", "important");
+      e.style.setProperty("top", Math.round(t) + "px", "important");
+    }
+  }
+  function follow(el, at) {
+    followers.set(el, at);
+    const tick = () => {
+      placeFollowers();
+      followRaf = followers.size ? requestAnimationFrame(tick) : 0;
+    };
+    if (!followRaf) followRaf = requestAnimationFrame(tick);
+    placeFollowers();
+  }
   function canvasRect() {
     return deco.peekCanvas ? deco.peekCanvas.getBoundingClientRect() : null;
   }
@@ -302,6 +329,7 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     if (kind === "tier") imp(b, { "font-size": "22px", padding: "6px 12px 7px", "box-shadow": "0 0 22px var(--cs-a, #c08cff)" });
     document.querySelectorAll("[data-cskin=peek-say]").forEach((x) => x.remove());
     document.documentElement.append(b);
+    follow(b, (box) => [box.left + box.width / 2, box.top - 6]);
     if (kind === "crit") {
       b.animate([{ opacity: 0, transform: "translate(-50%,-70%) scale(1.8) rotate(-10deg)" }, { opacity: 1, transform: "translate(-50%,-100%) scale(1) rotate(-4deg)", offset: 0.12 }, { transform: "translate(-48%,-100%) rotate(3deg)", offset: 0.2 }, { transform: "translate(-52%,-100%) rotate(-3deg)", offset: 0.28 }, { opacity: 1, transform: "translate(-50%,-105%) rotate(0)", offset: 0.75 }, { opacity: 0, transform: "translate(-50%,-125%)" }], { duration: 900, easing: "ease-out" }).onfinish = () => b.remove();
       return;
@@ -570,9 +598,10 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     if (!comboEl || !comboEl.isConnected) {
       comboEl = layer("peek-combo", { position: "fixed", "z-index": "2147481002", "pointer-events": "none", font: "900 16px/1 var(--cs-font)", color: "#fff", "white-space": "nowrap", "text-shadow": "0 2px 0 rgb(0 0 0 / .55), 0 0 10px var(--cs-a, #c08cff)", "-webkit-text-stroke": "0.5px rgb(0 0 0 / .4)" });
       document.documentElement.append(comboEl);
+      follow(comboEl, (box) => [box.right - 10, box.top + 4]);
     }
     const lvl = n >= 100 ? 3 : n >= 50 ? 2 : n >= 20 ? 1 : 0;
-    imp(comboEl, { left: Math.round(r.right - 10) + "px", top: Math.round(r.top + 4) + "px", "font-size": 15 + lvl * 4 + "px", color: ["#fff", "#ffe27a", "#ffb04a", "#ff5a5a"][lvl], opacity: "1" });
+    imp(comboEl, { "font-size": 15 + lvl * 4 + "px", color: ["#fff", "#ffe27a", "#ffb04a", "#ff5a5a"][lvl] });
     comboEl.textContent = "×" + n;
     comboEl.getAnimations().forEach((a) => a.cancel());
     const s = kind === "crit" || kind === "tier" ? 1.7 : 1.25;
@@ -580,7 +609,14 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
   }
   function endCombo() {
     const n = walk.combo;
-    if (comboEl) comboEl.animate([{ opacity: 1 }, { opacity: 0, transform: "translate(-50%,-90%) scale(.8)" }], { duration: 300, fill: "forwards" });
+    // Combo broken: the counter drifts up and fades, then is removed (the next combo builds a new one).
+    // Inline opacity must not be !important, or it wins over this animation and ×N stays forever.
+    if (comboEl) {
+      const el = comboEl;
+      comboEl = null;
+      el.getAnimations().forEach((a) => a.cancel());
+      el.animate([{ opacity: 1, transform: "translate(-50%,-50%) scale(1)" }, { opacity: 0, transform: "translate(-50%,-120%) scale(.8)" }], { duration: 450, easing: "ease-in", fill: "forwards" }).onfinish = () => el.remove();
+    }
     if (n >= 20 && n > best) {
       best = n;
       try {
