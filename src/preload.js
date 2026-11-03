@@ -327,8 +327,18 @@
       }
     }
     // elementsFromPoint skips pointer-events:none elements, and claude.ai's big backing panels are exactly that:
-    // scan the whole page by area as well
-    for (const el of document.querySelectorAll("body *")) consider(el, true);
+    // scan the page by area as well. Only boxes big enough to matter are descended into (and zero-size wrappers):
+    // a long conversation has thousands of small nodes, and measuring every one of them made the app stutter.
+    const stack = [...document.body.children];
+    while (stack.length) {
+      const el = stack.pop();
+      if (el.hasAttribute("data-cskin")) continue;
+      const r = el.getBoundingClientRect();
+      const share = (r.width * r.height) / (vw * vh);
+      if (share >= MIN_AREA) consider(el, true);
+      if (share >= MIN_AREA || share === 0) for (const c of el.children) stack.push(c);
+    }
+    lastShape = shapeKey();
     restoreSeeThrough(found);
     // These panels nest (body > page grid > sidebar). Each one half-transparent multiplies back to opaque, so:
     // a shell about as big as a selected descendant becomes fully transparent; the outermost remaining one gets
@@ -351,6 +361,28 @@
       else if (list.some((o) => o !== el && !shell.has(o) && covers(o, el))) a = INNER_ALPHA;
       el.style.setProperty("background-color", a ? `rgb(${rgb.r} ${rgb.g} ${rgb.b} / ${a})` : "transparent", "important");
     }
+  }
+
+  // Cheap test whether the big containers may have changed since the last full scan: run the full scan
+  // only then. Streaming replies change the DOM all the time but leave these alone.
+  let lastShape = "";
+  const shapeIds = new WeakMap();
+  let shapeSeq = 0;
+  const idOf = (el) => {
+    if (!el) return 0;
+    if (!shapeIds.has(el)) shapeIds.set(el, ++shapeSeq);
+    return shapeIds.get(el);
+  };
+  function shapeKey() {
+    const main = document.querySelector("main");
+    const side = document.querySelector("aside.dframe-sidebar, [data-testid=sidebar]");
+    return [innerWidth, innerHeight, document.body.childElementCount, idOf(main), main ? main.childElementCount : -1,
+      idOf(side), side ? Math.round(side.getBoundingClientRect().width) : -1, document.querySelectorAll("[role=dialog]").length].join("|");
+  }
+  function maybeSeeThrough() {
+    if (state.skin === OFF) return;
+    for (const el of state.marked.keys()) if (!el.isConnected) return seeThrough();
+    if (shapeKey() !== lastShape) seeThrough();
   }
 
   function restoreSeeThrough(keep) {
@@ -554,15 +586,17 @@ html[data-cskin-stage] [data-cskin=banner][data-cskin=banner][data-cskin=banner]
     let stTimer = 0;
     new MutationObserver(() => {
       clearTimeout(stTimer);
-      if (state.stage) stageScan();
-      stTimer = setTimeout(seeThrough, 300);
+      stTimer = setTimeout(() => {
+        if (state.stage) stageScan();
+        maybeSeeThrough();
+      }, 300);
     }).observe(document.body, { childList: true, subtree: true });
     // the SPA sometimes rebuilds nodes: put the layer back; accent variables need the page CSS, so retry a few times
     let tries = 0;
     setInterval(() => {
       if (state.stage || state.stageHidden.size) stageScan();
       if (!state.layer || !state.layer.isConnected || !state.line.isConnected) draw().catch(() => {});
-      else seeThrough();
+      else maybeSeeThrough();
       if (tries < 5 && state.skin !== OFF && state.accents.length === 0) {
         tries++;
         try {

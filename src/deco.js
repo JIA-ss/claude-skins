@@ -88,9 +88,8 @@ html[data-cskin-on] .epitaxy-chat-panel .bg-surface-3:not([data-cds=ChatComposer
   backdrop-filter: blur(16px) saturate(1.2) !important;
 }
 html[data-cskin-on] .epitaxy-chat-panel pre {
-  background-color: rgb(16 16 18 / .62) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  backdrop-filter: blur(12px) !important;
+  /* no backdrop-filter here: with the scene animating behind, every code block would be re-blurred each frame */
+  background-color: rgb(16 16 18 / .8) !important;
   border-left: 2px solid var(--cs-ring) !important;
 }
 html[data-cskin-on] [role=menu], html[data-cskin-on] [role=listbox], html[data-cskin-on] [role=dialog] {
@@ -213,11 +212,16 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     inner.append(sway);
     el.append(inner);
     document.documentElement.append(el);
-    Object.assign(deco, { peek: el, peekInner: inner, peekSway: sway, peekWalk: step, peekBody: body, peekCanvas: c });
-    if (!reduceMotion.matches) {
-      breath.animate([{ transform: "scale(1,1)" }, { transform: "scale(1.012,1.025)" }], { duration: 1300, iterations: Infinity, direction: "alternate", easing: "ease-in-out" });
-    }
+    Object.assign(deco, { peek: el, peekInner: inner, peekSway: sway, peekWalk: step, peekBody: body, peekBreath: breath, peekCanvas: c });
+    breathe();
     return el;
+  }
+  // A few breaths at a time, not forever: an endless animation makes the compositor redraw the whole
+  // see-through window every frame (measured on the Codex copy: GPU process ~30% vs ~8% without it), even in the background.
+  function breathe() {
+    const b = deco.peekBreath;
+    if (!b || reduceMotion.matches || document.hidden || !document.hasFocus() || b.getAnimations().length) return;
+    b.animate([{ transform: "scale(1,1)" }, { transform: "scale(1.012,1.025)" }], { duration: 1300, iterations: 4, direction: "alternate", easing: "ease-in-out" });
   }
   function paintPeek(bmp) {
     paint(deco.peekCanvas, bmp, PEEK_W, PEEK_H);
@@ -721,7 +725,9 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
 
   // 空闲时偶尔歪一下头
   setInterval(() => {
-    if (!api.skin() || peek.drag || peek.duck || document.hidden || Math.random() > 0.35) return;
+    if (!api.skin() || peek.drag || peek.duck || document.hidden) return;
+    if (Math.random() < 0.5) breathe();
+    if (Math.random() > 0.35) return;
     if (deco.peekBody && !deco.peekBody.getAnimations().length) ACTS.look();
   }, 7000);
 
@@ -827,7 +833,18 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     deco.fxCanvas = c;
     return c;
   }
-  let fxRaf = 0, fxLast = 0, fxParts = [], fxKind = "", fxColor = "";
+  let fxRaf = 0, fxLast = 0, fxParts = [], fxKind = "", fxColor = "", fxGlow = null;
+  // one soft dot drawn once and stamped per particle (a gradient per particle per frame was most of the fx cost)
+  function makeGlow(color) {
+    const g = document.createElement("canvas");
+    g.width = g.height = 32;
+    const x = g.getContext("2d"), grad = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, "transparent");
+    x.fillStyle = grad;
+    x.fillRect(0, 0, 32, 32);
+    return g;
+  }
   function fxRunning() {
     return !document.hidden && document.hasFocus() && !reduceMotion.matches && fxKind;
   }
@@ -835,10 +852,6 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     fxRaf = 0;
     const c = deco.fxCanvas;
     if (!c || !fxRunning()) return;
-    if (t - fxLast < 33) {
-      fxRaf = requestAnimationFrame(fxFrame);
-      return;
-    }
     const dt = Math.min(0.1, (t - (fxLast || t)) / 1000);
     fxLast = t;
     const w = c.width, h = c.height, ctx = c.getContext("2d");
@@ -885,26 +898,22 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
           a *= Math.max(0, 1 - p.life) * (0.6 + 0.4 * Math.sin(p.ph * 9));
           if (p.life >= 1 || p.y < 0) Object.assign(p, FX.embers.make(w, h), { life: 0 });
         } else if (p.y < -10) Object.assign(p, FX.spores.make(w, h), { y: h + 10 });
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
-        g.addColorStop(0, fxColor);
-        g.addColorStop(1, "transparent");
         ctx.globalAlpha = Math.max(0, a);
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r * 4, 0, 6.283);
-        ctx.fill();
+        ctx.drawImage(fxGlow, p.x - p.r * 4, p.y - p.r * 4, p.r * 8, p.r * 8);
       }
     }
     ctx.globalAlpha = 1;
-    fxRaf = requestAnimationFrame(fxFrame);
+    // ~20 fps is plenty for drifting particles; a timer instead of skipping frames keeps the page from waking at every vsync
+    fxRaf = setTimeout(() => (fxRaf = requestAnimationFrame(fxFrame)), 45);
   }
   function startFx() {
     const skin = api.skin();
     const c = ensureFx();
     fxKind = (skin && skin.fx) || "";
     fxColor = (skin && (skin.fxColor || skin.line)) || "#fff";
+    fxGlow = makeGlow(fxColor);
     if (!c) return;
-    const scale = Math.min(window.devicePixelRatio || 1, 1.25);
+    const scale = 1;
     c.width = Math.round(innerWidth * scale);
     c.height = Math.round(innerHeight * scale);
     c.getContext("2d").clearRect(0, 0, c.width, c.height);
@@ -956,7 +965,10 @@ html[data-cskin-on] [data-cds=ChatComposer] button[data-cds=Button]:not([data-cd
     startFx();
   });
   addEventListener("scroll", placePeek, true);
-  addEventListener("focus", resumeFx);
+  addEventListener("focus", () => {
+    resumeFx();
+    breathe();
+  });
   document.addEventListener("visibilitychange", resumeFx);
   reduceMotion.addEventListener?.("change", startFx);
   // SPA 换页会重建侧栏 / 输入框：定时补挂、重新定位
